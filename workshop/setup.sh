@@ -5,10 +5,11 @@
 
 K8SUSER=$RANDOM
 K8SPASSWORD=$RANDOM
+echo "This is your user/password for the webshell. Please keep it safe."
 echo "K8SUSER: $K8SUSER"
 echo "K8SPASSWORD: $K8SPASSWORD"
-K8SPASSWORD_BASE64=$(echo -n $K8SUSER | base64)
-K8SUSER_BASE64=$(echo -n $K8SPASSWORD | base64)
+K8SUSER_BASE64=$(echo -n $K8SUSER | base64)
+K8SPASSWORD_BASE64=$(echo -n $K8SPASSWORD | base64)
 
 ########################################
 # Project Setup
