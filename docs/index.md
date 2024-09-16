@@ -4,9 +4,9 @@ Welcome to the Attacking and Defending Azure Kubernetes Service Clusters.  This 
 
 ## Getting Started
 
-Click on "Getting Started" in the table of contents and follow the directions.
+Click on [Getting Started](azure/) in the table of contents and follow the directions.
 
-When a kubectl get pods --all-namespaces gives output like the following, you're ready to begin the tutorial.
+When a `kubectl get pods --all-namespaces` gives output like the following, you're ready to begin the tutorial.
 
 ```
 $ kubectl get pods --all-namespaces
