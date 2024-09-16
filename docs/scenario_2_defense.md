@@ -165,7 +165,7 @@ First, let's apply Gatekeeper itself:
 az aks enable-addons --addons azure-policy --name $AKS_NAME --resource-group $RESOURCE_GROUP
 
 # OLD COMMAND
-# kubectl apply -f https://raw.githubusercontent.com/securekubernetes/securekubernetes/master/manifests/security2.yaml
+# kubectl apply -f https://raw.githubusercontent.com/lastcoolnameleft/aks-ctf/main/workshop/scenario_2/security2.yaml
 ```
 
 Second, let's apply the policies. If you receive an error about `no matches for kind... in version ...`, this means Gatekeeper has not kicked into gear yet. Wait a few seconds then re-apply policies:
@@ -176,7 +176,7 @@ Second, let's apply the policies. If you receive an error about `no matches for 
 # https://learn.microsoft.com/en-us/azure/aks/use-azure-policy#validate-an-azure-policy-is-running
 
 # OLD COMMAND
-kubectl apply -f https://raw.githubusercontent.com/securekubernetes/securekubernetes/master/manifests/security2-policies.yaml
+kubectl apply -f https://raw.githubusercontent.com/lastcoolnameleft/aks-ctf/main/workshop/scenario_2/security2-policies.yaml
 ```
 
 Let's see if this actually works by trying to run some containers that violate these policies.
