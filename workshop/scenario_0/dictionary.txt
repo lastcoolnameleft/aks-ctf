@@ -1,0 +1,8 @@
+admin
+admin-console
+console
+control
+config
+superuser
+controlpanel
+backdoor

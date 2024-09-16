@@ -71,6 +71,8 @@ EOF
 
 kubectl apply -f omnibus.yml
 
+#Install the intial attack vector
+helm install insecureapp ./scenario_0/insecureapp --create-namespace --namespace insecureapp
 
 # Restrict access to services to just the user's IP
 # NOTE: Not sure this is needed anymore.
