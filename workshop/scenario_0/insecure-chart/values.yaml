@@ -1,0 +1,16 @@
+busybox:
+  namespace: busybox
+  replicas: 1
+  image: busybox:1.35.0
+  command: ["sleep", "3600"]
+
+insecureApp:
+  namespace: default
+  appName: insecure-app
+  replicas: 1
+  image:
+    repository: confusedcrib/insecure-app
+    tag: latest
+  ports:
+    http: 8080
+    ssh: 22
