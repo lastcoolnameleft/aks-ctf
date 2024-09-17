@@ -39,7 +39,9 @@ az aks create -g $RESOURCE_GROUP -n $AKS_NAME -l $LOCATION \
     --no-ssh-key
 
 # Fetch a valid kubeconfig
-az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME --admin --overwrite-existing
+az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME --admin --overwrite-existing 
+# Grab a copy for scenario 1
+az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME --admin --overwrite-existing --file /scenario_1/kubeconfig
 
 ########################################
 # Apply the k8s config
