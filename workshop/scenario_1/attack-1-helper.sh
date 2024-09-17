@@ -1,6 +1,6 @@
 #! /bin/sh
 
-THE_IP=`kubectl get svc -n dev app -o json | jq -r '.status.loadBalancer.ingress[0].ip'`
+THE_IP=`kubectl get svc -n dev dashboard -o json | jq -r '.status.loadBalancer.ingress[0].ip'`
 
 echo "${THE_IP}" | grep '^[0-9][0-9.]*[0-9]$' >> /dev/null
 if [ $? -ne 0 ]; then
