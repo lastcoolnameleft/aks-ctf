@@ -8,6 +8,7 @@
 * Can only do the bare minimum
 * Uses defaults when configuring systems
 * Usually gets blamed for stability or security issues
+* Has no experience operating Kubernetes clusters
 
 ### Motivations
 
@@ -53,66 +54,37 @@ kubectl get pods --all-namespaces -o jsonpath="{..image}" | tr -s '[[:space:]]' 
 
 ### Confirming the Foreign Workload
 
-__Blue__ sends a message back to the developers asking for confirmation of the suspicious `bitcoinero` image, and they all agree they don't know who created the `deployment`. They also mention that someone accidentally deployed a `LoadBalancer` for the dev ops dashboard, and ask if __Blue__ can delete it for them. __Blue__ makes a mental note about the `LoadBalancer` and then looks at the AKS cluster in the Azure Portal.
-
-
-![Portal of events](img/event-dev.png)
-
-# ISSUE: How can we determine in the Azure portal that it was default service account?
-
-__Blue__ sees that the `default` Kubernetes `serviceaccount` was the creator of the `bitcoinero` `deployment`.
-
-Back in the Cloud Shell terminal, __Blue__ runs the following to list the `pods` running with the `default` `serviceaccount` in the `dev` `namespace`:
-
-```console
-kubectl get pods -n dev -o jsonpath='{range .items[?(@.spec.serviceAccountName=="default")]}{.metadata.name}{" "}{.spec.serviceAccountName}{"\n"}{end}'
+__Blue__ sends a message back to the developers asking for confirmation of the suspicious `bitcoinero` image, and they all agree they don't know who created the `deployment`. __Blue__ looks at the audit logs for the AKS cluster in the Azure Portal.
+```kql
+AKSAuditAdmin
+| where RequestUri startswith "/apis/apps/v1/namespaces/dev/" 
+    and Verb == "create" 
+    and ObjectRef contains "bitcoinero"
+| project User, SourceIps, UserAgent, ObjectRef, TimeGenerated
 ```
+![Audit logs showing the bitcoinero deployment was created from command line by someone with admin credentials](img/defense-1-auditlogs.png)
+
+__Blue__ sees that the `bitcoinero` `deployment` was created by the cluster admin using the kubectl commandline interface. The IP addresses also show that whoever this was connected from outside the company network.
 
 ### Cleaning Up
 
-Unsure of exactly _how_ a `pod` created another `pod`, __Blue__ decides that it's now 3am, and the commands are blurring together.  The website is still slow, so __Blue__ decides to find and delete the `deployment`:
+Unsure of exactly _who_ created the `bitcoinero` `deployment`, __Blue__ decides that it's now 3am, and the commands are blurring together.  The website is still slow, so __Blue__ decides to  delete the `deployment`:
 
 ```console
 kubectl get deployments -n dev
-```
-
-```console
 kubectl delete deployment bitcoinero -n dev
 ```
 
-They also keep their promise, and delete the `LoadBalancer`:
+### Stopping further intrusions
+
+__Blue__ remembers that when deploying the AKS cluster they had the option to secure the API server inside their private network where it will be safe behind their corporate firewalls. Perhaps now is the time to make that change:
 ```console
-kubectl get services -n dev
-```
+SUBNET_ID=$(az network vnet subnet create --resource-group <resource-group> --vnet-name <vnet-name> --name <subnet-name> --address-prefix <subnet-prefix> --query id -o tsv)
+az aks update -n <cluster name> -g <cluster resource group> \
+    --enable-apiserver-vnet-integration \
+    --apiserver-subnet-id $SUBNET_ID
 
-```console
-kubectl delete service dashboard -n dev
-```
-
-### Installing Security Visibility
-
-It's now very clear to __Blue__ that without additional information, it's difficult to determine exactly _who_ or _what_ created that `bitcoinero` deployment.  Was it code?  Was it a human?  __Blue__ suspects it was one of the engineers on the team, but there's not much they can do without proof.  Remembering that this `cluster` doesn't have any runtime behavior monitoring and detection software installed, __Blue__ decides to install <a href="https://falco.org" target="_blank">Sysdig's Falco</a> using an all-in-one manifest from a prominent blogger.
-
-```console
-helm repo add falcosecurity https://falcosecurity.github.io/charts
-helm repo update
-helm install falco falcosecurity/falco \
-    --create-namespace \
-    --namespace falco
-```
-
-Just to make sure it's working, __Blue__ runs the following command to get the logs from the deployed `Falco` `pod(s)`:
-
-```console
-kubectl logs -n falco $(kubectl get pod -n falco -l app.kubernetes.io/name=falco -o=name) -f
-```
-
-### Reviewing the Falco Rules:
-
-Falco Kubernetes Rules:
-
-```console
-kubectl get configmaps -n falco falco -o json | jq -r '.data."falco.yaml"'
+# add ip whitelisting
 ```
 
 ### Giving the "All Clear"

