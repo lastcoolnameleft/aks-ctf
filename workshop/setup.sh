@@ -16,11 +16,25 @@ K8SPASSWORD_BASE64=$(echo -n $K8SPASSWORD | base64)
 echo
 echo "Create resource group..."
 echo
-export RESOURCE_GROUP="aks-ctf-rg"
-export LOCATION="westus"
-export AKS_NAME="aks-ctf"
-export AKS_NODEPOOL_RG="aks-ctf-nodepool-rg"
+export RESOURCE_GROUP="${RESOURCE_GROUP:-ctf-rg}"
+export LOCATION="${LOCATION:-westus}"
+export AKS_NAME="${AKS_NAME:-ctf-aks}"
+export VNET_NAME="${VNET_NAME:-ctf-vnet}"
+export AKS_SUBNET_NAME="${AKS_NAME:-aks-subnet}"
+export AKS_NODEPOOL_RG="${AKS_NODEPOOL_RG:-aks-ctf-nodepool-rg}"
+
 az group create --name $RESOURCE_GROUP --location $LOCATION
+
+az network vnet create \
+    --resource-group $RESOURCE_GROUP \
+    --name $VNET_NAME \
+    --address-prefixes 10.224.0.0/12 \
+    --subnet-name $AKS_SUBNET_NAME \
+    --subnet-prefix 10.224.0.0/16 \
+    --location $LOCATION
+
+AKS_SUBNET_ID=$(az network vnet subnet show --resource-group $RESOURCE_GROUP --vnet-name $VNET_NAME --name $AKS_SUBNET_NAME --query id -o tsv)
+echo "AKS_SUBNET_ID: $AKS_SUBNET_ID"
 
 ########################################
 # Create a Cluster
@@ -32,7 +46,7 @@ az aks create -g $RESOURCE_GROUP -n $AKS_NAME -l $LOCATION \
     --node-count 1 \
     --node-vm-size Standard_B4as_v2 \
     --node-resource-group $AKS_NODEPOOL_RG \
-    --pod-cidr 192.168.0.0/16 \
+    --vnet-subnet-id $AKS_SUBNET_ID \
     --network-plugin azure \
     --network-plugin-mode overlay \
     --enable-addons monitoring \
