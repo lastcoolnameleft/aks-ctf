@@ -38,7 +38,7 @@ Red Team reinstall miner on cluster.
 User Activity (Red):
   * connect to cluster through public endpoint exposed in A1
   * deploy bitcoin miner using SA token
-  * use the cluster principal to push a containmenated image to the ACR (webshell)
+  * use the ACR creds (stored as k8s secret) to push a containmenated image to the ACR (webshell)
 
 Blue team is sad to rediscover that a miner is back on the cluster. They remove the miner and further secure cluster with policy.
 
@@ -49,22 +49,22 @@ User Activity (Blue):
   * Nuke it from orbit! Blue starts over with a fresh nodepool
 
 
-### Attack 3 - Trusted images (signing)
+### Attack 3 - ACR Integration (disabled admin creds)
 
 Red team left behind a suprise in the form of a compromised image on the container repository.
 
 User Activity (Red):
   * do nothing, miner is running in app now
 
-Blue team finds another miner. They clean up the miner and enable image signing
+Blue team gets report app is slow again. Digs into the details and finds another miner but this time it's running inside the app pod! They do forensics and discover that somebody has pushed a new version of the app image that has the miner embedded in it. Enable ACR integration which leverages cluster identity with only pull access (not push).
 
 User Activity (Blue):
   * app is running hot, figure out why?
     * k exec -it --rm -- /bin/sh ps -a
   * there is a miner running in the app!
-  * turn on image signing
-  * enable policy to require signed images on cluster
-  * redeploy app with trusted image
+  * integrate ACR
+  * redeploy app image without bitcoin miner
+  * turn on defender for containers 
 
 ### Attack 4 - Application layer protection
 

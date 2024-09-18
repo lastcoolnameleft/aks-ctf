@@ -83,6 +83,8 @@ SUBNET_ID=$(az network vnet subnet create --resource-group <resource-group> --vn
 az aks update -n <cluster name> -g <cluster resource group> \
     --enable-apiserver-vnet-integration \
     --apiserver-subnet-id $SUBNET_ID
+
+# add ip whitelisting
 ```
 
 ### Giving the "All Clear"

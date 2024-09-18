@@ -81,7 +81,7 @@ az monitor diagnostic-settings create --name AKS-Diagnostics --resource $AKS_CLU
 # Fetch a valid kubeconfig
 az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME --admin --overwrite-existing 
 # Grab a copy for scenario 1
-az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME --admin --overwrite-existing --file /scenario_1/kubeconfig
+az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME --admin --overwrite-existing --file ./scenario_1/kubeconfig
 
 ########################################
 # Apply the k8s config
