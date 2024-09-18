@@ -1,16 +1,29 @@
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+apiVersion: v1
+kind: ServiceAccount
 metadata:
-  name: default-sa-namespace-admin
+  name: insecure-app-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: insecure-app-role
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: insecure-app-binding
+subjects:
+- kind: ServiceAccount
+  name: insecure-app-sa
   namespace: dev
 roleRef:
-  apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: admin
-subjects:
-- apiGroup: rbac.authorization.k8s.io
-  kind: User
-  name: system:serviceaccount:dev:default
+  name: insecure-app-role
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
 kind: Service
@@ -46,7 +59,7 @@ spec:
       labels:
         app: insecure-app
     spec:
-      serviceAccountName: default
+      serviceAccountName: insecure-app-sa
       containers:
       - name: insecure-app
         image: lastcoolnameleft/insecure-app:latest
