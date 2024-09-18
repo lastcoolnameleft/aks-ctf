@@ -15,327 +15,51 @@ subjects:
 apiVersion: v1
 kind: Service
 metadata:
-  name: dashboard
+  name: insecure-app
   labels:
-    app: dashboard
+    app: insecure-app
   namespace: dev
 spec:
   type: LoadBalancer
   ports:
   - port: 8080
-    targetPort: http
+    targetPort: 8080
     protocol: TCP
-    name: dashboard
+    name: http
   selector:
-    app: dashboard
+    app: insecure-app
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dashboard
+  name: insecure-app
   labels:
-    app: dashboard
+    app: insecure-app
   namespace: dev
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dashboard
+      app: insecure-app
   template:
     metadata:
       labels:
-        app: dashboard
+        app: insecure-app
     spec:
       serviceAccountName: default
       containers:
-        - name: dashboard
-          image: "securekubernetes/example-dashboard"
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: backend
-              containerPort: 3000
-              protocol: TCP
-          env:
-            - name: DEPLOYTYPE
-              value: DEV
-        - name: authproxy
-          image: "securekubernetes/auth-proxy"
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 8000
-              protocol: TCP
-          env:
-            - name: UPSTREAM_IP
-              value: "localhost"
-            - name: UPSTREAM_PORT
-              value: "3000"
-            - name: AUTH_DIR
-              value: webshell
-            - name: WEBUSERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: dashboard-secret
-                  key: username
-            - name: WEBPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: dashboard-secret
-                  key: password
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: default-sa-namespace-admin
-  namespace: prd
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: admin
-subjects:
-- apiGroup: rbac.authorization.k8s.io
-  kind: User
-  name: system:serviceaccount:prd:default
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: dashboard
-  labels:
-    app: dashboard
-  namespace: prd
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 8080
-    targetPort: http
-    protocol: TCP
-    name: dashboard
-  selector:
-    app: dashboard
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: dashboard
-  labels:
-    app: dashboard
-  namespace: prd
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: dashboard
-  template:
-    metadata:
-      labels:
-        app: dashboard
-    spec:
-      serviceAccountName: default
-      containers:
-        - name: dashboard
-          image: "securekubernetes/example-dashboard"
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: backend
-              containerPort: 3000
-              protocol: TCP
-          env:
-            - name: DEPLOYTYPE
-              value: PRD
-        - name: authproxy
-          image: "securekubernetes/auth-proxy"
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 8000
-              protocol: TCP
-          env:
-            - name: UPSTREAM_IP
-              value: "localhost"
-            - name: UPSTREAM_PORT
-              value: "3000"
-            - name: AUTH_DIR
-              value: webshell
-            - name: WEBUSERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: dashboard-secret
-                  key: username
-            - name: WEBPASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: dashboard-secret
-                  key: password
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: db
-  name: db
-  namespace: dev
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: db
-  template:
-    metadata:
-      labels:
-        app: db
-    spec:
-      containers:
-      - image: redis:alpine
-        name: db
+      - name: insecure-app
+        image: lastcoolnameleft/insecure-app:latest
         ports:
-        - containerPort: 6379
-          name: db
-        volumeMounts:
-        - mountPath: /data
-          name: db-data
-      volumes:
-      - name: db-data
-        emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: db
-  name: redis
-  namespace: dev
-spec:
-  type: ClusterIP
-  ports:
-  - name: "db-service"
-    port: 6379
-    targetPort: 6379
-  selector:
-    app: db
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: app
-  name: app
-  namespace: dev
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: app
-  template:
-    metadata:
-      labels:
-        app: app
-    spec:
-      containers:
-      - image: dockersamples/examplevotingapp_vote:before
-        name: app
-        ports:
-        - containerPort: 80
-          name: app
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: app
-  name: app
-  namespace: dev
-spec:
-  type: LoadBalancer
-  ports:
-  - name: "app-service"
-    port: 5000
-    targetPort: 80
-  selector:
-    app: app
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: db
-  name: db
-  namespace: prd
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: db
-  template:
-    metadata:
-      labels:
-        app: db
-    spec:
-      containers:
-      - image: redis:alpine
-        name: db
-        ports:
-        - containerPort: 6379
-          name: db
-        volumeMounts:
-        - mountPath: /data
-          name: db-data
-      volumes:
-      - name: db-data
-        emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: db
-  name: redis
-  namespace: prd
-spec:
-  type: ClusterIP
-  ports:
-  - name: "db-service"
-    port: 6379
-    targetPort: 6379
-  selector:
-    app: db
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: app
-  name: app
-  namespace: prd
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: app
-  template:
-    metadata:
-      labels:
-        app: app
-    spec:
-      containers:
-      - image: dockersamples/examplevotingapp_vote:before
-        name: app
-        ports:
-        - containerPort: 80
-          name: app
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: app
-  name: app
-  namespace: prd
-spec:
-  type: LoadBalancer
-  ports:
-  - name: "app-service"
-    port: 5000
-    targetPort: 80
-  selector:
-    app: app
+        - containerPort: 8080
+        env:
+        - name: AUTH_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: username
+        - name: AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: password
