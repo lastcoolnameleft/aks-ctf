@@ -87,13 +87,13 @@ az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME --admin
 # Apply the k8s config
 
 kubectl create namespace dev
-kubectl create namespace prd
+kubectl create namespace prod
 
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
-  name: dashboard-secret
+  name: app-secret
   namespace: dev
 type: Opaque
 data:
@@ -103,15 +103,15 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: dashboard-secret
-  namespace: prd
+  name: app-secret
+  namespace: prod
 type: Opaque
 data:
   username: $K8SUSER_BASE64
   password: $K8SPASSWORD_BASE64
 EOF
 
-kubectl apply -f omnibus.yml
+kubectl apply -f workshop/omnibus2.yml
 
 
 # Restrict access to services to just the user's IP
