@@ -12,8 +12,7 @@ In the real world, use good judgment. Don't hurt people, don't get yourself in t
 
 * Opportunist
 * Easy money via crypto-mining
-* Uses automated scans of web IP space for specific issues
-* Leverages off-the-shelf attacks
+* Uses automated scans of web IP space looking for known exploits and vulnerabilities
 
 ### Motivations
 
@@ -139,7 +138,6 @@ We can see the bitcoinero pod running, starting to generate a small but steady s
 ```console
 kubectl apply -n kube-system -f backdoor.yaml
 sleep 10
+echo "Save this IP for Attack Scenario #2"
 kubectl get svc metrics-server-service -n kube-system -o table -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
-
-_MISSION ACCOMPLISHED_

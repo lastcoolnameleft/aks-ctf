@@ -61,7 +61,7 @@ __Blue__ sends a message back to the developers asking for confirmation of the s
 __Blue__ sees that the `bitcoinero` `deployment` was created by cluster admin and is starting to suspect that somebody outside the company may have created this workload. 
 ### Cleaning Up
 
-Unsure of exactly _how_ a `pod` created another `pod`, __Blue__ decides that it's now 3am, and the commands are blurring together.  The website is still slow, so __Blue__ decides to find and delete the `deployment`:
+Unsure of exactly _who_ created the `bitcoinero` `deployment`, __Blue__ decides that it's now 3am, and the commands are blurring together.  The website is still slow, so __Blue__ decides to  delete the `deployment`:
 
 ```console
 kubectl get deployments -n dev
