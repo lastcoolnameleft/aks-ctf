@@ -42,15 +42,41 @@ echo
 echo "Deploying cluster..."
 echo
 
-az aks create -g $RESOURCE_GROUP -n $AKS_NAME -l $LOCATION \
-    --node-count 1 \
-    --node-vm-size Standard_B4as_v2 \
-    --node-resource-group $AKS_NODEPOOL_RG \
-    --vnet-subnet-id $AKS_SUBNET_ID \
-    --network-plugin azure \
-    --network-plugin-mode overlay \
-    --enable-addons monitoring \
-    --no-ssh-key
+AKS_CLUSTER_ID=$(az aks create -g $RESOURCE_GROUP -n $AKS_NAME -l $LOCATION \
+  --node-count 1 \
+  --node-vm-size Standard_B4as_v2 \
+  --node-resource-group $AKS_NODEPOOL_RG \
+  --vnet-subnet-id $AKS_SUBNET_ID \
+  --network-plugin azure \
+  --network-plugin-mode overlay \
+  --enable-addons monitoring \
+  --no-ssh-key \
+  --query id -o tsv)
+
+# Create a log analytics workspace for monitoring the cluster
+WORKSPACE_ID=$(az monitor log-analytics workspace create \
+  --resource-group $RESOURCE_GROUP \
+  --workspace-name ctf-workspace \
+  --location $LOCATION \
+  --query id -o tsv)
+
+# Enable kube-audit-admin
+az monitor diagnostic-settings create --name AKS-Diagnostics --resource $AKS_CLUSTER_ID \
+  --logs '[
+    {"category": "kube-audit", "enabled": false},
+    {"category": "kube-audit-admin", "enabled": true},
+    {"category": "kube-apiserver", "enabled": false},
+    {"category": "kube-controller-manager", "enabled": true},
+    {"category": "kube-scheduler", "enabled": true},
+    {"category": "cluster-autoscaler", "enabled": true},
+    {"category": "cloud-controller-manager", "enabled": true},
+    {"category": "guard", "enabled": true},
+    {"category": "csi-azuredisk-controller", "enabled": true},
+    {"category": "csi-azurefile-controller", "enabled": true},
+    {"category": "csi-snapshot-controller", "enabled": true}
+  ]' \
+  --workspace $WORKSPACE_ID \
+  --export-to-resource-specific true
 
 # Fetch a valid kubeconfig
 az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME --admin --overwrite-existing 

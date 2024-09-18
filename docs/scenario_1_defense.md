@@ -54,11 +54,18 @@ kubectl get pods --all-namespaces -o jsonpath="{..image}" | tr -s '[[:space:]]' 
 
 ### Confirming the Foreign Workload
 
-__Blue__ sends a message back to the developers asking for confirmation of the suspicious `bitcoinero` image, and they all agree they don't know who created the `deployment`. __Blue__ looks at the AKS cluster in the Azure Portal.
+__Blue__ sends a message back to the developers asking for confirmation of the suspicious `bitcoinero` image, and they all agree they don't know who created the `deployment`. __Blue__ looks at the audit logs for the AKS cluster in the Azure Portal.
+```kql
+AKSAuditAdmin
+| where RequestUri startswith "/apis/apps/v1/namespaces/dev/" 
+    and Verb == "create" 
+    and ObjectRef contains "bitcoinero"
+| project User, SourceIps, UserAgent, ObjectRef, TimeGenerated
+```
+![Audit logs showing the bitcoinero deployment was created from command line by someone with admin credentials](img/defense-1-auditlogs.png)
 
-# ISSUE: Ensure audit logs are being captured and provide a log analytics query to show who created the workload
+__Blue__ sees that the `bitcoinero` `deployment` was created by the cluster admin using the kubectl commandline interface. The IP addresses also show that whoever this was connected from outside the company network.
 
-__Blue__ sees that the `bitcoinero` `deployment` was created by cluster admin and is starting to suspect that somebody outside the company may have created this workload. 
 ### Cleaning Up
 
 Unsure of exactly _who_ created the `bitcoinero` `deployment`, __Blue__ decides that it's now 3am, and the commands are blurring together.  The website is still slow, so __Blue__ decides to  delete the `deployment`:
