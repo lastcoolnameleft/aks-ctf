@@ -27,23 +27,8 @@ Let's run some basic checks again to see if we can find random workloads:
 kubectl get pods --all-namespaces
 ```
 
-There does not appear to be any unusual workloads running on our cluster.
+It's back! But how?
 
-Just to be sure, let's check our cluster's resource consumption:
-
-```console
-kubectl top node
-```
-
-and
-
-```console
-kubectl top pod --all-namespaces
-```
-
-So far, everything looks normal. What gives?
-
-Hold on. We installed `falco` last time and it is throwing us alerts in StackDriver.
 
 # ISSUE How to do in Log Analytics?
 
