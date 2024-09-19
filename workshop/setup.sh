@@ -133,7 +133,7 @@ kubectl create secret docker-registry acr-secret \
   --docker-username $ACR_USERNAME \
   --docker-password $ACR_PASSWORD
 
-cat <<EOF >./workshop/manifests/kustomization.yaml
+cat <<EOF >>./workshop/manifests/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -141,9 +141,9 @@ resources:
 images:
 - name: lastcoolnameleft/insecure-app
   newName: ${ACR_NAME}.azurecr.io/insecure-app
-EOF  
+EOF
 
-kubectl apply -k workshop/manifests
+kubectl apply -k ./workshop/manifests
 
 
 # Restrict access to services to just the user's IP
