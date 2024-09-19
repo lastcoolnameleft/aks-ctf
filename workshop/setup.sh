@@ -127,12 +127,6 @@ kubectl create secret docker-registry acr-secret \
   --docker-username $ACR_USERNAME \
   --docker-password $ACR_PASSWORD
 
-kubectl create secret docker-registry acr-secret \
-  --namespace prd \
-  --docker-server $ACR_NAME.azurecr.io \
-  --docker-username $ACR_USERNAME \
-  --docker-password $ACR_PASSWORD
-
 cat <<EOF >>./workshop/manifests/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
