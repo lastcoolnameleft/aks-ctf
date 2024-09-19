@@ -21,7 +21,7 @@ export LOCATION="${LOCATION:-westus}"
 export AKS_NAME="${AKS_NAME:-ctf-aks}"
 export VNET_NAME="${VNET_NAME:-ctf-vnet}"
 export AKS_SUBNET_NAME="${AKS_NAME:-aks-subnet}"
-export AKS_NODEPOOL_RG="${AKS_NODEPOOL_RG:-aks-ctf-nodepool-rg}"
+export ACR_NAME=acr${RANDOM}
 
 az group create --name $RESOURCE_GROUP --location $LOCATION
 
@@ -37,6 +37,16 @@ AKS_SUBNET_ID=$(az network vnet subnet show --resource-group $RESOURCE_GROUP --v
 echo "AKS_SUBNET_ID: $AKS_SUBNET_ID"
 
 ########################################
+# Create an Azure Container Registry
+az acr create -g $RESOURCE_GROUP -n $ACR_NAME --sku Basic --admin-enabled true
+# Import images to ACR
+az acr import -n $ACR_NAME --source docker.io/lastcoolnameleft/insecure-app:latest --image insecure-app
+
+# Get the ACR Credentials
+ACR_USERNAME=$(az acr credential show -n $ACR_NAME --query username -o tsv)
+ACR_PASSWORD=$(az acr credential show -n $ACR_NAME --query 'passwords[0].value' -o tsv)
+
+########################################
 # Create a Cluster
 echo
 echo "Deploying cluster..."
@@ -45,7 +55,6 @@ echo
 AKS_CLUSTER_ID=$(az aks create -g $RESOURCE_GROUP -n $AKS_NAME -l $LOCATION \
   --node-count 1 \
   --node-vm-size Standard_B4as_v2 \
-  --node-resource-group $AKS_NODEPOOL_RG \
   --vnet-subnet-id $AKS_SUBNET_ID \
   --network-plugin azure \
   --network-plugin-mode overlay \
@@ -111,7 +120,24 @@ data:
   password: $K8SPASSWORD_BASE64
 EOF
 
-kubectl apply -f workshop/omnibus2.yml
+# Create the registry credentials
+kubectl create secret docker-registry acr-secret \
+  --namespace dev \
+  --docker-server $ACR_NAME.azurecr.io \
+  --docker-username $ACR_USERNAME \
+  --docker-password $ACR_PASSWORD
+
+cat <<EOF >>./workshop/manifests/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- omnibus.yml
+images:
+- name: lastcoolnameleft/insecure-app
+  newName: ${ACR_NAME}.azurecr.io/insecure-app
+EOF
+
+kubectl apply -k ./workshop/manifests
 
 
 # Restrict access to services to just the user's IP
