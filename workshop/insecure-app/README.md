@@ -7,7 +7,13 @@ This app is intended to have an intentional security flaw that allows you to run
 Run example: 
 ```
 cd workshop/insecure-app
-docker build -t lastcoolnameleft/insecure-app:latest .
+
+# Build and push for Linux
+docker build --platform linux/amd64  -t lastcoolnameleft/insecure-app:latest .
+docker push lastcoolnameleft/insecure-app:latest
+
+# Build and run for Mac (only for local testing)
+docker build --platform linux/arm64  -t lastcoolnameleft/insecure-app:latest .
 docker run -p 8080:8080 -e AUTH_USERNAME=foo -e AUTH_PASSWORD=bar lastcoolnameleft/insecure-app:latest
 ```
 
