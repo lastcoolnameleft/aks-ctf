@@ -66,8 +66,12 @@ spec:
       containers:
       - name: insecure-app
         image: lastcoolnameleft/insecure-app:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 0
         env:
         - name: AUTH_USERNAME
           valueFrom:
