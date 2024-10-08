@@ -22,6 +22,8 @@ nav:
   - Scenario 1 Defense: scenario_1_defense.md
   - Scenario 2 Attack: scenario_2_attack.md
   - Scenario 2 Defense: scenario_2_defense.md
+  - Scenario 3 Attack: scenario_3_attack.md
+  - Scenario 3 Defense: scenario_3_defense.md
   - Wrap Up: wrapup.md
 markdown_extensions:
   - markdown.extensions.admonition
