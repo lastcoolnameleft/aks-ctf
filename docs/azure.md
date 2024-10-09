@@ -17,21 +17,13 @@ The script will prompt you for a project name (just hit enter to accept the defa
 1. When the script is finished, verify it worked correctly.
 
 ```console
-kubectl get pods --all-namespaces
+kubectl get pods --namespace dev
 ```
 
 The output should look similar to this:
 ```
-$ kubectl get pods --all-namespaces
-NAMESPACE     NAME                                         READY   STATUS    RESTARTS   AGE
-dev           app-6ffb94966d-9nqnk                         1/1     Running   0          70s
-dev           dashboard-5889b89d4-dj7kq                    2/2     Running   0          70s
-dev           db-649646fdfc-kzp6g                          1/1     Running   0          70s
-...
-prd           app-6ffb94966d-nfhn7                         1/1     Running   0          70s
-prd           dashboard-7b5fbbc459-sm2zk                   2/2     Running   0          70s
-prd           db-649646fdfc-vdwj6                          1/1     Running   0          70s
-
+NAME                           READY   STATUS    RESTARTS   AGE
+insecure-app-674cf64dd-qf7md   1/1     Running   0          63m                                                                                                                        [0.3s]
 ```
 
 If it looks good, move on to [Scenario 1 Attack](scenario_1_attack/).
