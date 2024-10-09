@@ -52,7 +52,10 @@ The general process looks like this:
 
 __Red__ team found an app online and ran a [dictionary attack](https://www.techtarget.com/searchsecurity/definition/dictionary-attack) against it.  Some valid paths were `/crash` and `/admin`.  Let's try to find an exploit!
 
-To find the compromised website, run the following: `./workshop/scenario_1/attack-1-helper.sh`
+To find the compromised website, run the following:
+```
+./scenario_1/attack-1-helper.sh
+```
 
 In your browser, go to URL provided (e.g. `http://<IP>:8080/`)
 
