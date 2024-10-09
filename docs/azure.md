@@ -26,4 +26,4 @@ NAME                           READY   STATUS    RESTARTS   AGE
 insecure-app-674cf64dd-qf7md   1/1     Running   0          63m                                                                                                                        [0.3s]
 ```
 
-If it looks good, move on to [Scenario 1 Attack](scenario_1_attack/).
+If it looks good, move on to Scenario 1 Attack.
