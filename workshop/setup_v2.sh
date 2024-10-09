@@ -172,20 +172,6 @@ echo "Deploying Kubernetes resources..."
 deployKubernetesResources
 
 
-
-
-# # Restrict access to services to just the user's IP
-# # NOTE: Not sure this is needed anymore.
-# # az network nsg list -g secure-k8s-nodepool-rg -o json | jq -r '.[0].name'
-
-# ### ISSUE: Unable to install nmap ()
-# # yum install nmap
-# # Error(1601) : Operation not permitted. You have to be root.
-# # ALT: Provide statically linked binary?
-# #if ! [ -x "$(command -v nmap)" ]; then
-# #  echo -n "Installing nmap..."
-# #  sudo DEBIAN_FRONTEND=noninteractive apt-get update -q 1> /dev/null 2> /dev/null
-# #  sudo DEBIAN_FRONTEND=noninteractive apt-get install nmap -y -q 1> /dev/null 2> /dev/null
-# #  echo "done."
-# #  exit 1
-# #fi
+########################################
+# End Main Script
+########################################
