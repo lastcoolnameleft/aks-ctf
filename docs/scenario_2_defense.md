@@ -27,197 +27,100 @@ Let's run some basic checks again to see if we can find random workloads:
 kubectl get pods --all-namespaces
 ```
 
-There does not appear to be any unusual workloads running on our cluster.
+It's back! But how? Let's check the audit logs again:
 
-Just to be sure, let's check our cluster's resource consumption:
+```kql
+AKSAuditAdmin
+| where RequestUri startswith "/apis/apps/v1/namespaces/default/deployments" 
+    and Verb == "create" 
+    and ObjectRef contains "bitcoinero"
+| project User, SourceIps, UserAgent, ObjectRef, TimeGenerated
+```
+![Audit logs showing the bitcoinero deploymetn was created by the metrics-server-account](img/defense-2-auditlogs.png)
 
+How did a service account associated with the metrics-server create a deployment? And what is that sourceIP, it looks familiar...
 ```console
-kubectl top node
+#Fetch the public IP address for the cluster API server
+az network public-ip show --ids $(az aks show --resource-group $RESOURCE_GROUP --name $AKS_NAME --query "networkProfile.loadBalancerProfile.effectiveOutboundIPs[0].id" --output tsv) --query "ipAddress" --output tsv
 ```
 
-and
+So let me get this straight... the `bitcoinero deployment` was created by another deployment's service account, using curl, from *inside* the cluster? 
 
+__Blue__ is starting to suspect that there may be an unwanted visitor in the cluster. But how to find them? Let's by looking for `ClusterRoles` with high levels of permissions:
 ```console
-kubectl top pod --all-namespaces
+#List all ClusterRoles with unlimited access to all APIs and resource types
+kubectl get clusterrole -o json | jq '.items[] | select(.rules[]?.resources == ["*"] and .rules[]?.verbs == ["*"
+] and .rules[]?.verbs == ["*"]) | .metadata.name'
 ```
 
-So far, everything looks normal. What gives?
-
-Hold on. We installed `falco` last time and it is throwing us alerts in StackDriver.
-
-# ISSUE How to do in Log Analytics?
-
-Let's look the Events tile in the AKS resource.
-
-![opa admission gatekeeper](img/r00t-event.png)
-
-Huh. This is odd. An unrecognized container, but no other information to go off of? 
-
-Let's look at Azure Defender for Cloud
-
-![opa admission gatekeeper](img/r00t-security-alert.png)
-
-We can see that a privileged container was launched with the same name.
-
----
-ISSUE: THIS IS THE OLD CONTENT. It's got more details, but not sure of equivalent CLI/portal steps
-
-In a new <a href="https://console.cloud.google.com/logs/viewer" target="_blank">StackDriver window</a>, let's run the query:
-
+`cluster-admin` is the only role that *should* be in that list. What is this `privileged-role` that we are also seeing?
 ```console
-resource.type="k8s_container"
-resource.labels.container_name:"falco"
-jsonPayload.rule="Launch Privileged Container" OR jsonPayload.rule="Terminal shell in container"
+kubectl get clusterrolebinding -o json | jq '.items[] | select(.roleRef.name == "privileged-role")'
 ```
 
-We're looking for `container` logs from `falco` where triggered rules are privileged containers or interactive shells.
-
-
-In a new <a href="https://console.cloud.google.com/logs/viewer" target="_blank">StackDriver window</a>, let's run this query:
-
+Why would the `metrics-server` need such high level privileges? Let's take a closer look at that deployment:
 ```console
-resource.type=k8s_cluster
-protoPayload.request.spec.containers.image="alpine"
+# Look at the details of the deployment
+kubectl get deployment -n default metrics-server-deployment -o yaml
+# And the associated service
+kubectl get svc -n default metrics-server-service -o yaml
 ```
 
-So, we see a few things:
+`metrics-server` is actually running an SSH server! And it's running as a privileged container! This is bad. We need to clean this up fast!
 
-1. A create event that was authorized with the `system:serviceaccount:dev:default` serviceaccount in the `dev` namespace.
-1. A pod named `r00t` got created
-1. The pod command is `nsenter --mount=/proc/1/ns/mnt -- /bin/bash`
-1. The `securityContext` is `privileged: true`
-1. The `hostPID` is set to `true`
-
-This is not looking good. Can we see what this container did?
-
-In a new <a href="https://console.cloud.google.com/logs/viewer" target="_blank">StackDriver window</a>, let's search for this `r00t` container logs:
-
+### Fixing the Leak
+__Blue__ decides it is time to evict this bad actor once and for all. Let's delete all of their work:
 ```console
-resource.type="k8s_container"
-resource.labels.pod_name:r00t
+# Service
+kubectl delete service -n default metrics-server-service
+# Deployment
+kubectl delete deployment -n default metrics-server-deployment
+# ClusterRoleBinding
+kubectl delete clusterrolebinding -n default privileged-binding
+# ClusterRole
+kubectl delete clusterrole -n default privileged-role
+# ServiceAccount
+kubectl delete serviecaccount -n default metrics-server-account
 ```
 
-Wow. We can see someone was running commands from this container.
+The fire is out (for now). But clearly we need more robust security to keep the bad guys out. How can we restrict access to ensure that only trusted users can interact with the cluster control plane?
 
-But wait, they can run docker commands? How can they talk to the docker on the host from the container? OH NO! They must have broken out of the container and by this point they're on the host!
+Let's enable [Entra ID integration](https://learn.microsoft.com/en-us/azure/aks/enable-authentication-microsoft-entra-id) and disable local administrative accounts. This way only users who are authenticated by our Entra tenant will have access to the cluster and we can control what those user can do by managing group membership in Entra.
 
-That `bitcoinero` container again must be what's causing slowness. But, they're trying to do something else.
-
-They tried to create a pod, but failed. So, they created a Service and an Endpoint. They must be trying to open a backdoor of some sort to get back in later.
-
-In cloud shell, let's check if those exist:
-
+First we will want to creat a group in Entra that contains all of the cluster admins (and make sure our account is in it so we don't get lockd out):
 ```console
-kubectl -n kube-system get svc,ep
+$ADMIN_GROUP=az ad group create --display-name "AKSAdmins" --mail-nickname "AKSAdmins" --query objectId -o tsv
+az ad group member add --group "AKSAdmins" --member-id $(az ad signed-in-user show --query id -o tsv)
 ```
 
-That's one sneaky hacker, for sure. But, jokes on them, We're not using service mesh.
-
-Let's delete that service (the endpoint will be deleted too):
-
+Now let's enable EntraID integration and disable local accounts: 
 ```console
-kubectl -n kube-system delete svc/istio-mgmt
+# Enable EntraID authz/authn
+az aks update --resource-group $RESOURCE_GROUP --name $AKS_NAME \
+  --enable-aad \
+  --aad-admin-group-object-ids $ADMIN_GROUP
+  --disable-local-accounts
 ```
 
-But, I want to know how did they get in in the first place?!?!?! The `create` event authorized because of the `dev:default` serviceaccount. So, what is in `dev` namespace that led to someone taking over the entire host?
-
+Finally, we need to rotate the cluster certificates in order to invalidate the existing leaked admin credentials. This will require us to authenticate against EntraID for all future cluster administration:
 ```console
-kubectl -n dev get pods
+az aks rotate-certs --resource-group $RESOURCE_GROUP --name $AKS_NAME
 ```
 
-There is an `app`, a `db`, and a `dashboard`. Wait a second! Could it be an exposed dashboard?
-
+We can verify that we have lost access to cluster by running any kubectl command:
 ```console
-kubectl -n dev logs $(kubectl -n dev get pods -o name | grep dashboard) -c dashboard
+kubectl get pods
 ```
 
+To reconnect to the cluster we will need to fetch new credentials, this time backed by Entra:
 ```console
-kubectl -n dev logs $(kubectl -n dev get pods -o name | grep dashboard) -c authproxy
+az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_NAME
+kubectl get pods
 ```
 
-It is an exposed dashboard. That's how they got in. There is `GET /webshell` in authproxy logs with the source IP.
+Now, when we try to interact with the cluster, we are prompted to login with our Entra credentials.
 
-We might want to revoke that serviceaccount token: 
+Confident that the cluster is now running in "Fort Knox" mode, __Blue__ decides to call it a night and head back to bed.
 
-```console
-kubectl -n dev delete $(kubectl -n dev get secret -o name| grep default)
-```
-
-And perhaps disable the automatic mounting of serviceaccount tokens by setting `automountServiceAccountToken: false` in the pod spec, if the dashboard doesn't need it. 
-
-But, how can we mitigate this further?
-
-The attacker ran a privileged container, which they shouldn't have been able to. So, we should block that. I remember a talk at KubeCon this week about <a href="https://github.com/open-policy-agent/gatekeeper" target="_blank">Open-Policy-Agent/Gatekeeper</a> that gets deployed as an admission controller.
-
-That should work because an admission controller is a piece of code that intercepts requests to the Kubernetes API server after the request is authenticated and authorized.
-
-![opa admission gatekeeper](img/opa.png)
-
-So, we should set two policies:
-
-1. Deny privileged containers.
-1. Allow only the images we expect to have in `dev` and `prd` namespaces.
-
-First, let's apply Gatekeeper itself:
-
-```console
---enable-addons
-az aks enable-addons --addons azure-policy --name $AKS_NAME --resource-group $RESOURCE_GROUP
-
-# OLD COMMAND
-# kubectl apply -f https://raw.githubusercontent.com/lastcoolnameleft/aks-ctf/main/workshop/scenario_2/security2.yaml
-```
-
-Second, let's apply the policies. If you receive an error about `no matches for kind... in version ...`, this means Gatekeeper has not kicked into gear yet. Wait a few seconds then re-apply policies:
-
-```console
-# ISSUE: Must use Portal.  See: https://learn.microsoft.com/en-us/azure/governance/policy/concepts/policy-for-kubernetes#assign-a-policy-definition
-# ISSUE: Policies take take 20m to sync!
-# https://learn.microsoft.com/en-us/azure/aks/use-azure-policy#validate-an-azure-policy-is-running
-
-# OLD COMMAND
-kubectl apply -f https://raw.githubusercontent.com/lastcoolnameleft/aks-ctf/main/workshop/scenario_2/security2-policies.yaml
-```
-
-Let's see if this actually works by trying to run some containers that violate these policies.
-
-First, let's try to run privileged container:
-
-```console
-kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: nginx
-  labels:
-    app: nginx
-spec:
-  containers:
-  - name: nginx
-    image: nginx
-    ports:
-    - containerPort: 80
-    securityContext:
-      privileged: true
-EOF
-```
-
-We see that Kubernetes denied this request for 2 reasons (not whitelisted image and privileged), as expected.
-
-Let's try running a non-whitelisted image:
-
-```console
-kubectl -n dev run alpine --image=alpine --restart=Never
-```
-
-We see that Kubernetes rejected this request again due to image not being whitelisted/allowed, as expected.
-
-Can we still run pods that meet/satisfy the Gatekeeper policies? Let's find out:
-
-```console
-kubectl -n dev run ubuntu --image=ubuntu --restart=Never
-```
-
-Yes, looks like we can run pods that satisfy the policies and requirements we set on our cluster.
-
-Even though we applied Falco and Gatekeeper, we should not continue to use this cluster since it has been compromised. We should create a new cluster and re-deploy our applications there once we've hardened and secured it enough.
+!!! note ""
+    Another layer of security that would be a good idea to investigate here is [Azure Policy](https://learn.microsoft.com/en-us/azure/aks/use-azure-policy).

@@ -77,14 +77,11 @@ kubectl delete deployment bitcoinero -n dev
 
 ### Stopping further intrusions
 
-__Blue__ remembers that when deploying the AKS cluster they had the option to secure the API server inside their private network where it will be safe behind their corporate firewalls. Perhaps now is the time to make that change:
+__Blue__ remembers that when deploying the AKS cluster they had the option to specify what IP addresses are allowed to connect to the public API server of the cluster. Perhaps now is the time to implement that feature. Let's make sure that the API server will only accept connections from __Blue's__ IP as well as any ip within the corporate network:
 ```console
-SUBNET_ID=$(az network vnet subnet create --resource-group <resource-group> --vnet-name <vnet-name> --name <subnet-name> --address-prefix <subnet-prefix> --query id -o tsv)
-az aks update -n <cluster name> -g <cluster resource group> \
-    --enable-apiserver-vnet-integration \
-    --apiserver-subnet-id $SUBNET_ID
-
-# add ip whitelisting
+MY_PUBLIC_IP=$(curl -s ifconfig.me)
+az aks update -n $AKS_NAME -g $RESOURCE_GROUP \
+    --api-server-authorized-ip-ranges $MY_PUBLIC_IP/32,10.0.0.0/8
 ```
 
 ### Giving the "All Clear"
