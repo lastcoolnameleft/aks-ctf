@@ -55,6 +55,7 @@ resource aksDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01
   scope: aks
   properties: {
     workspaceId: workspaceId
+    logAnalyticsDestinationType: 'Dedicated'
     logs: [
       {
         category: 'kube-audit'
