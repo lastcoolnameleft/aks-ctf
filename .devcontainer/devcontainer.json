@@ -2,5 +2,6 @@
 	"image": "mcr.microsoft.com/devcontainers/universal:2",
 	"features": {
 		"ghcr.io/devcontainers/features/azure-cli:1": {}
-	}
+	},	
+	"postCreateCommand": "echo \"alias k=kubectl\" >> /home/codespace/.bash_aliases && az aks install-cli"
 }
