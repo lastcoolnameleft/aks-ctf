@@ -66,7 +66,7 @@ kubectl get deployment -n default metrics-server-deployment -o yaml
 kubectl get svc -n default metrics-server-service -o yaml
 ```
 
-`metrics-server` is actually running an SSH server! And it's running as a privileged container! This is bad. We need to clean this up fast!
+`metrics-server` is actually running an SSH server! And it's running as a privileged container! This is *bad*. We need to clean this up fast!
 
 ### Fixing the Leak
 __Blue__ decides it is time to evict this bad actor once and for all. Let's delete all of their work:
