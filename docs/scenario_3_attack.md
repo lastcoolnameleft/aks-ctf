@@ -47,7 +47,6 @@ curl -O -J https://raw.githubusercontent.com/lastcoolnameleft/aks-ctf/refs/heads
 Everything has been installed.  Let's kill our process and let the new image come up
 ```
 kubectl delete pod $HOSTNAME
-TODO: kubectl rollout restart 
 ```
 
 The page immediately died (which is understandable since we killed the pod).  Let's reload the page and see if we were successful.  Run the following command in the admin page

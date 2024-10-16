@@ -2,9 +2,9 @@
 
 We've gotten paged.  AGAIN!  Let's check the cluster.
 
-Any unwanted pods? `kubectl get pods -A`
-
 Any unwanted open ports?  `kubectl get service -A` 
+
+Any unwanted pods? `kubectl get pods -A`
 
 Where's the spike coming from? `kubectl top node`
 
@@ -24,25 +24,31 @@ There's a foreign workload `moneymoneymoney` running in our app!  How did this g
 
 Let's delete the pod: `kubectl delete pod --force --grace-period=0 $POD`.
 
-But just to be sure, let's verify it's gone.
+But just to be sure, let's verify that process is gone.
 
 ```
-kubectl exec -it $POD -- ps -ef
+kubectl exec -it $NEW_POD -- ps -ef
 ```
 
 This...is not good.  The miner is running inside the app and restarting the app also restarted the miner.  Is our app infected?!  How could this have happened?!
 
-Let's go re-investigate that `bitcoin-injector` pod: `kubectl get logs bitcoin-injector-<RANDOM STRING>`
+Let's go re-investigate that `bitcoin-injector` pod:
+```
+kubectl describe pods bitcoin-injector-xxxxx
+# Looks like it was started as Job/bitcoin-injector
+
+kubectl logs bitcoin-injector-xxxxx
+# Looks like the output of a Docker build command
+```
 
 It seems like they got our container registry credentials and then used that to pull our image and then push a new one with the exact same name!  But how did they get that?
 
 Let's look at the Log Analytics Audit Logs:
 ```kql
 AKSAuditAdmin
-| where RequestUri startswith "/apis/apps/v1/namespaces/dev/" 
+| where RequestUri startswith "/apis/batch"
     and Verb == "create" 
-    and ObjectRef contains "bitcoin-injector"
-| project User, SourceIps, UserAgent, ObjectRef, TimeGenerated
+| project ObjectRef, User, SourceIps, UserAgent, TimeGenerated
 ```
 
 It appears that the request came from `insecure-app`.  But how?
@@ -61,7 +67,7 @@ We need a plan of defense:
 
 ## Delete the infected image
 
-Since the infected insecure-app and bitcoinero images are still on the node, we need to make sure it's removed.  To prevent another container from using old images, let's install the [AKS Image Cleaner](https://learn.microsoft.com/en-us/azure/aks/image-cleaner).  This will prevent them re-installing the old insecure-app or bitcoinero images.
+We'll have the developers re-build each of the containers and push to our ACR; however, since the infected insecure-app and bitcoinero images are still on the node, we need to make sure it's removed.  To prevent another container from using old images, let's install the [AKS Image Cleaner](https://learn.microsoft.com/en-us/azure/aks/image-cleaner).  This will prevent them re-installing the old insecure-app or bitcoinero images.
 
 ```
 az aks update --name $AKS_NAME --resource-group $RESOURCE_GROUP  --enable-image-cleaner
