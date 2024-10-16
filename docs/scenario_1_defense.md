@@ -43,7 +43,7 @@ kubectl top pod --all-namespaces
 It appears that a suspcious `deployment` named `bitcoinero` is running, and its causing resource contention issues.  __Blue__ runs the following to see the `pod's` full configuration:
 
 ```console
-kubectl get deployment -n svc bitcoinero -o yaml
+kubectl get deployment -n dev bitcoinero -o yaml
 ```
 
 It was created very recently, but there are no ports listening, so this looks unlikely to be part of the website.  Next, __Blue__ grabs a consolidated listing of all images running in the `cluster`:
@@ -81,7 +81,7 @@ __Blue__ remembers that when deploying the AKS cluster they had the option to sp
 ```console
 MY_PUBLIC_IP=$(curl -s ifconfig.me)
 az aks update -n $AKS_NAME -g $RESOURCE_GROUP \
-    --api-server-authorized-ip-ranges $MY_PUBLIC_IP/32,10.0.0.0/8
+    --api-server-authorized-ip-ranges $MY_PUBLIC_IP/32
 ```
 
 ### Giving the "All Clear"

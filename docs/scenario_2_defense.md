@@ -36,7 +36,7 @@ AKSAuditAdmin
     and ObjectRef contains "bitcoinero"
 | project User, SourceIps, UserAgent, ObjectRef, TimeGenerated
 ```
-![Audit logs showing the bitcoinero deploymetn was created by the metrics-server-account](img/defense-2-auditlogs.png)
+![Audit logs showing the bitcoinero deployment was created by the metrics-server-account](img/defense-2-auditlogs.png)
 
 How did a service account associated with the metrics-server create a deployment? And what is that sourceIP, it looks familiar...
 ```console
@@ -61,9 +61,9 @@ kubectl get clusterrolebinding -o json | jq '.items[] | select(.roleRef.name == 
 Why would the `metrics-server` need such high level privileges? Let's take a closer look at that deployment:
 ```console
 # Look at the details of the deployment
-kubectl get deployment -n default metrics-server-deployment -o yaml
+kubectl get deployment -n kube-system metrics-server-deployment -o yaml
 # And the associated service
-kubectl get svc -n default metrics-server-service -o yaml
+kubectl get svc -n kube-system metrics-server-service -o yaml
 ```
 
 `metrics-server` is actually running an SSH server! And it's running as a privileged container! This is *bad*. We need to clean this up fast!
@@ -72,15 +72,15 @@ kubectl get svc -n default metrics-server-service -o yaml
 __Blue__ decides it is time to evict this bad actor once and for all. Let's delete all of their work:
 ```console
 # Service
-kubectl delete service -n default metrics-server-service
+kubectl delete service -n kube-system metrics-server-service
 # Deployment
-kubectl delete deployment -n default metrics-server-deployment
+kubectl delete deployment -n kube-system metrics-server-deployment
 # ClusterRoleBinding
-kubectl delete clusterrolebinding -n default privileged-binding
+kubectl delete clusterrolebinding -n kube-system privileged-binding
 # ClusterRole
-kubectl delete clusterrole -n default privileged-role
+kubectl delete clusterrole -n kube-system privileged-role
 # ServiceAccount
-kubectl delete serviecaccount -n default metrics-server-account
+kubectl delete sa -n kube-system metrics-server-account
 ```
 
 The fire is out (for now). But clearly we need more robust security to keep the bad guys out. How can we restrict access to ensure that only trusted users can interact with the cluster control plane?
@@ -89,8 +89,9 @@ Let's enable [Entra ID integration](https://learn.microsoft.com/en-us/azure/aks/
 
 First we will want to creat a group in Entra that contains all of the cluster admins (and make sure our account is in it so we don't get lockd out):
 ```console
-$ADMIN_GROUP=az ad group create --display-name "AKSAdmins" --mail-nickname "AKSAdmins" --query objectId -o tsv
-az ad group member add --group "AKSAdmins" --member-id $(az ad signed-in-user show --query id -o tsv)
+GROUP_NAME=$(echo AKSAdmins$RANDOM)
+ADMIN_GROUP=$(az ad group create --display-name "$GROUP_NAME" --mail-nickname "$GROUP_NAME" --query id -o tsv)
+az ad group member add --group "$GROUP_NAME" --member-id $(az ad signed-in-user show --query id -o tsv)
 ```
 
 Now let's enable EntraID integration and disable local accounts: 
@@ -98,7 +99,7 @@ Now let's enable EntraID integration and disable local accounts:
 # Enable EntraID authz/authn
 az aks update --resource-group $RESOURCE_GROUP --name $AKS_NAME \
   --enable-aad \
-  --aad-admin-group-object-ids $ADMIN_GROUP
+  --aad-admin-group-object-ids $ADMIN_GROUP \
   --disable-local-accounts
 ```
 
@@ -120,7 +121,12 @@ kubectl get pods
 
 Now, when we try to interact with the cluster, we are prompted to login with our Entra credentials.
 
+NOTE: If you are running this lab inside of a managed tenant with strict conditional access policies you may need to run these additional commands to login to the cluster...
+```
+az login
+kubelogin convert-kubeconfig -l azurecli
+```
+
 Confident that the cluster is now running in "Fort Knox" mode, __Blue__ decides to call it a night and head back to bed.
 
-!!! note ""
-    Another layer of security that would be a good idea to investigate here is [Azure Policy](https://learn.microsoft.com/en-us/azure/aks/use-azure-policy).
+Another layer of security that would be a good idea to investigate here is [Azure Policy](https://learn.microsoft.com/en-us/azure/aks/use-azure-policy).

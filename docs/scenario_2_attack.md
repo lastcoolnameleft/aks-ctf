@@ -54,7 +54,7 @@ curl -k -X POST "$API_SERVER/apis/apps/v1/namespaces/$NAMESPACE/deployments" -H 
 
 Verify that the pod is running:
 ```console
-curl -k -X GET "$API_SERVER/api/v1/namespaces/$NAMESPACE/pods/bitcoinero" -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" 2>/dev/null | grep phase
+curl -k -X GET "$API_SERVER/api/v1/namespaces/$NAMESPACE/pods?labelSelector=run%3dbitcoinero" -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" 2>/dev/null | grep phase
 ```
 
 Time for some celebratory pizza!
