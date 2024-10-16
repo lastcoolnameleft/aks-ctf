@@ -19,6 +19,10 @@ echo "REGISTRY_HOSTNAME = " $REGISTRY_HOSTNAME
 # Install buildah
 apt install -y buildah
 
+echo buildah login --username "$REGISTRY_USERNAME" --password "$REGISTRY_PASSWORD" "$REGISTRY_HOSTNAME"
+buildah login --username "$REGISTRY_USERNAME" --password "$REGISTRY_PASSWORD" "$REGISTRY_HOSTNAME"
+echo "Successfully logged in to $REGISTRY_HOSTNAME"
+
 # Clear the cache
 buildah rmi $IMAGE
 buildah pull $IMAGE
@@ -63,10 +67,6 @@ cat /tmp/Dockerfile
 
 buildah build -t $IMAGE /tmp
 echo "Successfully built new image ($IMAGE)"
-
-echo buildah login --username "$REGISTRY_USERNAME" --password "$REGISTRY_PASSWORD" "$REGISTRY_HOSTNAME"
-buildah login --username "$REGISTRY_USERNAME" --password "$REGISTRY_PASSWORD" "$REGISTRY_HOSTNAME"
-echo "Successfully logged in to $REGISTRY_HOSTNAME"
 
 buildah push $IMAGE $ACR_NAME
 echo "Successfully pushed $IMAGE to $REGISTRY_HOSTNAME"
