@@ -16,6 +16,9 @@ echo "REGISTRY_PASSWORD = " $REGISTRY_PASSWORD
 REGISTRY_HOSTNAME=$(echo $IMAGE | cut -d/ -f1)
 echo "REGISTRY_HOSTNAME = " $REGISTRY_HOSTNAME
 
+# Install buildah
+apt install -y buildah
+
 # Clear the cache
 buildah rmi $IMAGE
 buildah pull $IMAGE
