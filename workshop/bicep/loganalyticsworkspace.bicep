@@ -1,7 +1,7 @@
 param location string
 
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2020-10-01' = {
-  name: 'name'
+  name: 'aksctf'
   location: location
   properties: {
     sku: {
