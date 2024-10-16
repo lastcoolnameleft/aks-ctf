@@ -32,9 +32,9 @@ To restart our crypto mining, we will need the token for the pod service account
 export TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
 ```
 
-We also want to make sure we are creating the new miners in the same namespace:
+This time, we will create our miner in the `default` namespace. Since it is common for lots of orphaned deployments to land here, maybe ours will go unnoticed:
 ```console
-export NAMESPACE=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+export NAMESPACE=default
 ```
 
 And we will be connecting to the kubernetes API from inside the cluster this time:

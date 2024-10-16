@@ -1,2 +1,4 @@
 site
 bonus
+workshop/manifests/kustomization.yaml
+workshop/scenario_1/kubeconfig

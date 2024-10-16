@@ -48,7 +48,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: metrics-server-account
-  namespace: default
+  namespace: kube-system
 roleRef:
   kind: ClusterRole
   name: privileged-role
