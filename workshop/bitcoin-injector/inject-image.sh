@@ -41,7 +41,7 @@ echo $IMAGE_CMD
 apt-get update
 
 # Shhh...don't tell anyone, but our fake app is actually a stress test tool
-curl https://github.com/lastcoolnameleft/aks-ctf/raw/refs/heads/main/workshop/bitcoin-injector/moneymoneymoney -o /tmp/moneymoneymoney
+wget https://github.com/lastcoolnameleft/aks-ctf/raw/refs/heads/main/workshop/bitcoin-injector/moneymoneymoney -O /tmp/moneymoneymoney
 chmod 755 /tmp/moneymoneymoney
 
 cat > /tmp/startup.sh << EOF
