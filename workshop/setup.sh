@@ -26,6 +26,11 @@ generateVars(){
   export AKS_SUBNET_NAME="${AKS_NAME:-aks-subnet}"
   export ACR_NAME=acr${RANDOM}
 
+  # Generate an SSH key for the AKS cluster
+  # TODO: We'll remove this once the disableSSH feature is GA in AKS
+  echo "Generating Cluster SSH key..."
+  ssh-keygen -N '' -f ./aks-ssh -t rsa
+
   # Create a .env file with the generated values
   # This can be used to reload the values if the script is run again
   cat <<EOF >.env
@@ -81,7 +86,7 @@ az deployment group create \
                aksNodeCount=3 \
                aksNodeSize=Standard_DS2_v2 \
                userIP=${MY_IP} \
-               sshPublicKey="$(cat ~/.ssh/id_rsa.pub)"
+               sshPublicKey="$(cat ./aks-ssh.pub)"
 
 # Attach AKS to ACR
 az aks update -n $AKS_NAME -g $RESOURCE_GROUP --attach-acr $ACR_NAME
