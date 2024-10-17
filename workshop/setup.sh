@@ -7,6 +7,8 @@
 # Function to generate or load the values for environment variables
 # and store them in a .env file
 generateVars(){
+  # Get users public IP
+  MY_IP=$(curl -s icanhazip.com)
   K8SUSER=$RANDOM
   K8SPASSWORD=$RANDOM
   echo "This is your user/password for the webshell. Please keep it safe."
@@ -24,9 +26,15 @@ generateVars(){
   export AKS_SUBNET_NAME="${AKS_NAME:-aks-subnet}"
   export ACR_NAME=acr${RANDOM}
 
+  # Generate an SSH key for the AKS cluster
+  # TODO: We'll remove this once the disableSSH feature is GA in AKS
+  echo "Generating Cluster SSH key..."
+  ssh-keygen -N '' -f ./aks-ssh -t rsa
+
   # Create a .env file with the generated values
   # This can be used to reload the values if the script is run again
   cat <<EOF >.env
+  MY_IP=$MY_IP
   K8SUSER=$K8SUSER
   K8SPASSWORD=$K8SPASSWORD
   K8SUSER_BASE64=$K8SUSER_BASE64
@@ -43,6 +51,7 @@ EOF
 # Function to load the values from the .env file
 loadExistingVars(){
   source ./.env
+  echo "MY_IP: $MY_IP"
   echo "K8SUSER: $K8SUSER"
   echo "K8SPASSWORD: $K8SPASSWORD"
   echo "K8SUSER_BASE64: $K8SUSER_BASE64"
@@ -57,6 +66,9 @@ loadExistingVars(){
 
 # Function to deploy the Azure resources
 deployAzureResources(){
+
+echo "Deploying Azure resources..."
+
 # Create the resource group
 az group create -n $RESOURCE_GROUP -l $LOCATION
 
@@ -73,7 +85,8 @@ az deployment group create \
                acrName=${ACR_NAME} \
                aksNodeCount=3 \
                aksNodeSize=Standard_DS2_v2 \
-               sshPublicKey="$(cat ~/.ssh/id_rsa.pub)"
+               userIP=${MY_IP} \
+               sshPublicKey="$(cat ./aks-ssh.pub)"
 
 # Attach AKS to ACR
 az aks update -n $AKS_NAME -g $RESOURCE_GROUP --attach-acr $ACR_NAME

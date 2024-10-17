@@ -5,10 +5,18 @@ param subnetName string
 param subnetPrefix string = '10.224.0.0/16'
 param aksClusterName string
 param acrName string
-param aksNodeCount int = 3
+param aksNodeCount int = 1
 param aksNodeSize string = 'Standard_DS2_v2'
 param aksAdminUsername string = 'azureuser'
 param sshPublicKey string
+param userIP string
+
+module nsg './nsg.bicep' = {
+  name: 'nsg'
+  params: {
+    userIP: userIP
+  }
+}
 
 module vnet './vnet.bicep' = {
   name: 'vnet'
@@ -18,6 +26,7 @@ module vnet './vnet.bicep' = {
     vnetAddressPrefix: vnetAddressPrefix
     subnetName: subnetName
     subnetPrefix: subnetPrefix
+    subnetNsgId: nsg.outputs.nsgId
   }
 }
 
