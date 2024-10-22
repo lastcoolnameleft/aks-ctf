@@ -56,6 +56,9 @@ markdown_extensions:
   - pymdownx.tilde
 
 extra:
+  analytics:
+    provider: clarity
+    property: aks-ctf
   social:
     - icon: fontawesome/brands/github-alt
       link: https://github.com/lastcoolnameleft/aks-ctf
