@@ -4,11 +4,36 @@
 # Functions
 ########################################
 
+# Function to get the users public IP
+getUserPublicIP(){
+export USER_PUBLIC_IP=$(curl -s icanhazip.com)
+
+printf "\n###############################################################################"
+printf "\nThis workshop needs to know your public IP address to secure the AKS cluster."
+printf "\nIf you are using a cloud shell or code spaces that will have a different public IP than your local public IP."
+printf "\nYou can check your local public IP by visiting https://icanhazip.com/ from your local machine."
+printf "\n###############################################################################\n\n"
+
+
+while true; do
+  read -p "Is your local public IP ${USER_PUBLIC_IP}? (y/n)" -n 1 -r yn
+  case $yn in
+    [Yy] ) 
+        break;;
+    [nN] ) read -p $'\nPlease enter your public IP: ' USER_PUBLIC_IP;;
+    *) printf "\nInvalid Response...exiting"; exit 1 ;;
+  esac
+done
+
+printf "\nProceeding with user public IP: $USER_PUBLIC_IP \n"
+}
+
 # Function to generate or load the values for environment variables
 # and store them in a .env file
 generateVars(){
-  # Get users public IP
-  MY_IP=$(curl -s icanhazip.com)
+  # Get the users public IP
+  getUserPublicIP
+
   K8SUSER=$RANDOM
   K8SPASSWORD=$RANDOM
   echo "This is your user/password for the webshell. Please keep it safe."
@@ -34,7 +59,7 @@ generateVars(){
   # Create a .env file with the generated values
   # This can be used to reload the values if the script is run again
   cat <<EOF >.env
-  MY_IP=$MY_IP
+  USER_PUBLIC_IP=$USER_PUBLIC_IP
   K8SUSER=$K8SUSER
   K8SPASSWORD=$K8SPASSWORD
   K8SUSER_BASE64=$K8SUSER_BASE64
@@ -51,7 +76,7 @@ EOF
 # Function to load the values from the .env file
 loadExistingVars(){
   source ./.env
-  echo "MY_IP: $MY_IP"
+  echo "USER_PUBLIC_IP: $USER_PUBLIC_IP"
   echo "K8SUSER: $K8SUSER"
   echo "K8SPASSWORD: $K8SPASSWORD"
   echo "K8SUSER_BASE64: $K8SUSER_BASE64"
@@ -67,7 +92,7 @@ loadExistingVars(){
 # Function to deploy the Azure resources
 deployAzureResources(){
 
-echo "Deploying Azure resources..."
+#echo "Deploying Azure resources..."
 
 # Create the resource group
 az group create -n $RESOURCE_GROUP -l $LOCATION
@@ -85,7 +110,7 @@ az deployment group create \
                acrName=${ACR_NAME} \
                aksNodeCount=3 \
                aksNodeSize=Standard_DS2_v2 \
-               userIP=${MY_IP} \
+               userIP=${USER_PUBLIC_IP} \
                sshPublicKey="$(cat ./aks-ssh.pub)"
 
 # Attach AKS to ACR
